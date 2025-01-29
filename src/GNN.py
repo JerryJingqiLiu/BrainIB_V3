@@ -43,7 +43,7 @@ class GNN(nn.Module):
               ("ReLU", nn.ReLU()),
         ]))
 
-    def forward(self, graph_batch, edge_weight=None):
+    def forward(self, graph_batch, edge_weights=None):
         """
         :param graph_batch: Graph batch object from PyTorch Geometric containing node features, edge indices, etc.
         :param edge_weight: Optional edge weight (could be the edge probability matrix)
