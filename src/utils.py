@@ -12,6 +12,7 @@ from scipy.spatial.distance import pdist, squareform
 from sklearn.model_selection import train_test_split
 
 from src.mutual_information import RenyiEntropy
+from src.mutual_information import CS_QMI
 
 def separate_data(graph_list, seed, fold_idx):
     """
@@ -180,9 +181,13 @@ def train(args, model, train_dataset, optimizer, epoch, SG_model, device, criter
                     sigma2 = 0.1  # Change default value to 0.1
 
             # Calculate mutual information by using RenyiEntropy class
-            mi_loss = RenyiEntropy.calculate_mi(embeddings, positive, sigma1 ** 2, sigma2 ** 2) / len(graphs)
+            renyi_entropy = RenyiEntropy()
+            mi_loss = renyi_entropy.calculate_mi(embeddings, positive, sigma1 ** 2, sigma2 ** 2) / len(graphs)
+            
             # Using CS_QMI class
-            # mi_loss = calculate_MI(embeddings, positive, sigma1 ** 2, sigma2 ** 2) / len(graphs)
+            # cs_qmi = CS_QMI()
+            # mi_loss = cs_qmi.calculate_mi(embeddings, positive, sigma1 ** 2, sigma2 ** 2) / len(graphs)
+            
             labels = batch_graph.y.view(-1, ).to(device)
 
             # Calculate L1 regularization loss (sum of absolute values of all parameters). This L1 regularization is not used
