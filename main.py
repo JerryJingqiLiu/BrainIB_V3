@@ -108,6 +108,8 @@ if __name__ == "__main__":
         print(f"fold_idx: {fold_idx}")
         max_acc_train = 0.0
         max_acc_test = 0.0
+        best_train_epoch = 0
+        best_test_epoch = 0
 
         train_dataset, test_dataset = separate_data(dataset, args.seed, fold_idx)
 
@@ -141,12 +143,17 @@ if __name__ == "__main__":
             )
 
             # print info and save models
-            max_acc_train = max(max_acc_train, acc_train)
+            if acc_train > max_acc_train:
+                max_acc_train = acc_train
+                best_train_epoch = epoch
+            if acc_test > max_acc_test:
+                max_acc_test = acc_test
+                best_test_epoch = epoch
             acc_train_list[fold_idx] = max_acc_train
-            max_acc_test = max(max_acc_test, acc_test)
             acc_test_list[fold_idx] = max_acc_test
             print(
-                f"best accuracy in epoch {epoch} (train / test): ({max_acc_train} / {max_acc_test})"
+                f"Current epoch {epoch}, best accuracy (train: {max_acc_train:.4f} at epoch {best_train_epoch} / "
+                f"test: {max_acc_test:.4f} at epoch {best_test_epoch})"
             )
 
             # Create file structure using user-specified root directory
