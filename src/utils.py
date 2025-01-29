@@ -30,49 +30,6 @@ def separate_data(graph_list, seed, fold_idx):
     return train_graph_list, test_graph_list
 
 
-def GaussianMatrix(X,Y,sigma):
-    size1 = X.size()
-    size2 = Y.size()
-    G = (X*X).sum(-1)
-    H = (Y*Y).sum(-1)
-    Q = G.unsqueeze(-1).repeat(1,size2[0])
-    R = H.unsqueeze(-1).T.repeat(size1[0],1)
-    H = Q + R - 2*X@(Y.T)
-    gram_matrix = torch.clamp(torch.exp(-H/2/sigma**2),min=0)
-    
-    return gram_matrix
-
-
-def calculate_MI(x, y, s_x, s_y):
-    """
-    Function for computing mutual information using CS_QMI method
-    Args:
-        x: input tensor
-        y: input tensor 
-        s_x: sigma for x kernel
-        s_y: sigma for y kernel
-    Returns:
-        Mutual information calculated using CS_QMI
-    """
-    N = x.shape[0]
-    
-    # Compute two kernel matrices using the provided s_x and s_y
-    Kx = GaussianMatrix(x, x, sigma=s_x)
-    Ky = GaussianMatrix(y, y, sigma=s_y)
-    
-    # Calculate the three terms of CS_QMI
-    self_term1 = torch.trace(Kx@Ky.T)/(N**2)
-    self_term2 = (torch.sum(Kx)*torch.sum(Ky))/(N**4)
-    
-    term_a = torch.ones(1,N).to(x.device)
-    term_b = torch.ones(N,1).to(x.device)
-    cross_term = (term_a@Kx.T@Ky@term_b)/(N**3)
-    
-    mi = -2*torch.log2(cross_term) + torch.log2(self_term1) + torch.log2(self_term2)
-    
-    return mi
-
-
 def train(args, model, train_dataset, optimizer, epoch, SG_model, device, criterion=nn.CrossEntropyLoss()):
     """
     A function used to train the model that feeds all the training data into the model once per execution
