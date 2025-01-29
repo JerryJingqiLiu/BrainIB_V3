@@ -103,11 +103,64 @@ class RenyiEntropy:
         return mi
     
 class CS_QMI:
-    def __init__(self, alpha=1.01):
+    def __init__(self):
         """
         Initialize the mutual information calculator.
+        """
+        pass
+    
+    def _gaussian_matrix(self, X, Y, sigma):
+        """
+        Calculate Gaussian kernel matrix between two tensors.
         
         Args:
-            alpha (float): Alpha parameter for Renyi entropy calculation. Default is 5.
+            X (torch.Tensor): First input tensor
+            Y (torch.Tensor): Second input tensor
+            sigma (float): Bandwidth parameter
+            
+        Returns:
+            torch.Tensor: Gaussian kernel matrix
         """
-        self.alpha = alpha
+        size1 = X.size()
+        size2 = Y.size()
+        G = (X*X).sum(-1)
+        H = (Y*Y).sum(-1)
+        Q = G.unsqueeze(-1).repeat(1,size2[0])
+        R = H.unsqueeze(-1).T.repeat(size1[0],1)
+        H = Q + R - 2*X@(Y.T)
+        gram_matrix = torch.clamp(torch.exp(-H/2/sigma**2),min=0)
+        
+        return gram_matrix
+    
+    def calculate_mi(self, x, y, s_x, s_y):
+        """
+        Calculate mutual information between two tensors using CS_QMI method.
+        
+        Args:
+            x (torch.Tensor): First input tensor
+            y (torch.Tensor): Second input tensor
+            s_x (float): Sigma parameter for x kernel
+            s_y (float): Sigma parameter for y kernel
+            
+        Returns:
+            torch.Tensor: Mutual information value
+        """
+        N = x.shape[0]
+        
+        # Compute two kernel matrices using the provided s_x and s_y
+        Kx = self._gaussian_matrix(x, x, sigma=s_x)
+        Ky = self._gaussian_matrix(y, y, sigma=s_y)
+        
+        # Calculate the three terms of CS_QMI
+        self_term1 = torch.trace(Kx@Ky.T)/(N**2)
+        self_term2 = (torch.sum(Kx)*torch.sum(Ky))/(N**4)
+        
+        term_a = torch.ones(1,N).to(x.device)
+        term_b = torch.ones(N,1).to(x.device)
+        cross_term = (term_a@Kx.T@Ky@term_b)/(N**3)
+        
+        mi = -2*torch.log2(cross_term) + torch.log2(self_term1) + torch.log2(self_term2)
+        
+        return mi
+    
+    
