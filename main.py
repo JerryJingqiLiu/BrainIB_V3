@@ -1,6 +1,8 @@
 import os
 import os.path as osp
 import argparse
+import logging
+from datetime import datetime
 
 import torch
 import torch.nn.functional as F
@@ -80,6 +82,25 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # Set up logging
+    log_filename = osp.join(args.save_dir, f'training_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
+    if not osp.exists(args.save_dir):
+        os.makedirs(args.save_dir)
+    
+    # Configure logging settings
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(message)s',
+        handlers=[
+            logging.FileHandler(log_filename),
+            logging.StreamHandler()
+        ]
+    )
+    logger = logging.getLogger(__name__)
+    
+    logger.info("Starting training process...")
+    logger.info(f"Arguments: {args}")
+
     torch.manual_seed(0)
     np.random.seed(0)
 
@@ -105,7 +126,7 @@ if __name__ == "__main__":
         fold_range = range(num_of_fold)
 
     for fold_idx in fold_range:
-        print(f"fold_idx: {fold_idx}")
+        logger.info(f"fold_idx: {fold_idx}")
         max_acc_train = 0.0
         max_acc_test = 0.0
         best_train_epoch = 0
@@ -133,7 +154,7 @@ if __name__ == "__main__":
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.5)
 
         for epoch in range(1, args.epochs + 1):
-            print(f'Current FOLD: ---{fold_idx}---')
+            logger.info(f'Current FOLD: ---{fold_idx}---')
             # Train the model and test it
             avg_loss, mi_loss = train(
                 args, model, train_dataset, optimizer, epoch, SG_model, device
@@ -151,7 +172,7 @@ if __name__ == "__main__":
                 best_test_epoch = epoch
             acc_train_list[fold_idx] = max_acc_train
             acc_test_list[fold_idx] = max_acc_test
-            print(
+            logger.info(
                 f"Current epoch {epoch}, best accuracy (train: {max_acc_train:.4f} at epoch {best_train_epoch} / "
                 f"test: {max_acc_test:.4f} at epoch {best_test_epoch})"
             )
@@ -217,11 +238,11 @@ if __name__ == "__main__":
 
             torch.cuda.empty_cache()
 
-    print(100 * "-")
-    print("ASD 10-fold validation results: ")
-    print("Model Name: V3")
-    print(f"train accuracy list: {acc_train_list}")
-    print(f"mean = {acc_train_list.mean()}, variance = {acc_train_list.var()}")
-    print(f"test accuracy list: {acc_test_list}")
-    print(f"mean = {acc_test_list.mean()}, variance = {acc_test_list.var()}")
-    print(100 * "-")
+    logger.info(100 * "-")
+    logger.info("ASD 10-fold validation results: ")
+    logger.info("Model Name: V3")
+    logger.info(f"train accuracy list: {acc_train_list}")
+    logger.info(f"mean = {acc_train_list.mean()}, variance = {acc_train_list.var()}")
+    logger.info(f"test accuracy list: {acc_test_list}")
+    logger.info(f"mean = {acc_test_list.mean()}, variance = {acc_test_list.var()}")
+    logger.info(100 * "-")
