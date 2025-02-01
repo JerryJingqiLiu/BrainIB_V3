@@ -39,7 +39,7 @@ class MLP_subgraph(nn.Module):
             graph = torch.sigmoid(sampling_weights)
         return graph
     
-    def _concrete_sampel(self, log_alpha, beta=1.0, training=True):
+    def _concrete_sample(self, log_alpha, beta=1.0, training=True):
         '''gate_inputs = (GumbelNoise + log_alpha) / beta'''
         if training:
             random_noise = torch.rand(log_alpha.shape)
@@ -80,7 +80,7 @@ class MLP_subgraph(nn.Module):
         # edge_prob = self._sample_graph(
         #     edge_prob, temperature=0.5, bias=0.0, training=self.training
         # )
-        edge_prob = self._concrete_sampel(edge_prob, beta=0.5, training=self.training)
+        edge_prob = self._concrete_sample(edge_prob, beta=0.5, training=self.training)
         # edge_prob shape:  [E] -- > [E,2]
         p_complement = 1 - edge_prob
         edge_prob = torch.stack([edge_prob, p_complement], dim=1)
