@@ -17,7 +17,7 @@ from src.sub_graph_generator import MLP_subgraph
 
 class EnsembleInference:
     """
-    用于集成多个Bootstrap模型进行推理的类
+    Class for ensemble inference using multiple Bootstrap models
     """
     def __init__(
         self,
@@ -26,7 +26,7 @@ class EnsembleInference:
         num_models: int = 10,
         num_node_features: int = 116,
         num_edge_features: int = 1,
-        model_epoch: str = "best"  # 新增参数：指定使用哪个epoch的模型
+        model_epoch: str = "best"  # New parameter: specify which epoch's model to use
     ):
         self.model_dir = model_dir
         self.device = device
@@ -35,18 +35,18 @@ class EnsembleInference:
         self.num_edge_features = num_edge_features
         self.model_epoch = model_epoch
         
-        # 加载所有模型
+        # Load all models
         self.models, self.sg_models = self._load_models()
         
     def _load_models(self) -> Tuple[List[nn.Module], List[nn.Module]]:
         """
-        加载所有保存的模型
+        Load all saved models
         """
         models = []
         sg_models = []
         
         for i in range(self.num_models):
-            # 初始化模型
+            # Initialize model
             model = GNN(num_of_features=self.num_node_features, device=self.device).to(self.device)
             sg_model = MLP_subgraph(
                 node_features_num=self.num_node_features,
@@ -54,22 +54,22 @@ class EnsembleInference:
                 device=self.device
             ).to(self.device)
             
-            # 根据指定的epoch构建模型文件名
+            # Construct model filename based on the specified epoch
             if self.model_epoch == "best":
                 model_filename = "best_model.tar"
             else:
                 model_filename = f"epoch_{self.model_epoch}.tar"
             
-            # 加载模型状态
+            # Load model state
             model_path = osp.join(self.model_dir, f"bootstrap_{i}", "GNN", model_filename)
             sg_model_path = osp.join(self.model_dir, f"bootstrap_{i}", "subgraph", model_filename)
             
-            # 检查文件是否存在
+            # Check if the file exists
             if not osp.exists(model_path) or not osp.exists(sg_model_path):
                 raise FileNotFoundError(
-                    f"模型文件不存在：\n"
-                    f"GNN模型：{model_path}\n"
-                    f"子图模型：{sg_model_path}"
+                    f"Model file does not exist:\n"
+                    f"GNN model: {model_path}\n"
+                    f"Subgraph model: {sg_model_path}"
                 )
             
             model.load_state_dict(torch.load(model_path)["state_dict"])
@@ -90,25 +90,25 @@ class EnsembleInference:
         data: List[Data]
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        使用单个模型进行预测
+        Make predictions using a single model
         
         Returns:
-            预测的类别和概率
+            Predicted classes and probabilities
         """
         batch_size = 32
         all_probs = []
         all_preds = []
         
-        # 复制数据以避免修改原始数据
+        # Clone data to avoid modifying the original data
         test_data = [d.clone() for d in data]
         
-        # 应用子图生成器
+        # Apply subgraph generator
         for i in range(len(test_data)):
             with torch.no_grad():
                 subgraph, _ = sg_model(test_data[i])
                 test_data[i] = subgraph
         
-        # 批量预测
+        # Batch prediction
         for i in range(0, len(test_data), batch_size):
             batch_data = test_data[i:i + batch_size]
             batch_loader = DataLoader(batch_data, batch_size=len(batch_data))
@@ -122,7 +122,7 @@ class EnsembleInference:
                 all_probs.append(probs)
                 all_preds.append(preds)
         
-        # 合并所有批次的结果
+        # Merge results from all batches
         all_probs = torch.cat(all_probs, dim=0)
         all_preds = torch.cat(all_preds, dim=0)
         
@@ -133,39 +133,39 @@ class EnsembleInference:
         data: List[Data]
     ) -> Tuple[torch.Tensor, torch.Tensor, Dict[str, float]]:
         """
-        使用所有模型进行集成预测
+        Make ensemble predictions using all models
         
         Returns:
-            集成预测的类别、概率和每个模型的准确率
+            Ensemble predicted classes, probabilities, and accuracy for each model
         """
         all_model_preds = []
         all_model_probs = []
         model_accuracies = {}
         
-        # 获取真实标签
+        # Get true labels
         true_labels = torch.tensor([d.y.item() for d in data]).to(self.device)
         
-        # 使用每个模型进行预测
+        # Make predictions using each model
         for i, (model, sg_model) in enumerate(zip(self.models, self.sg_models)):
             preds, probs = self.predict_single_model(model, sg_model, data)
             all_model_preds.append(preds)
             all_model_probs.append(probs)
             
-            # 计算每个模型的准确率
+            # Calculate accuracy for each model
             accuracy = (preds == true_labels).float().mean().item()
             model_accuracies[f"model_{i}_accuracy"] = accuracy
         
-        # 将所有预测堆叠起来
+        # Stack all predictions
         stacked_preds = torch.stack(all_model_preds)
         stacked_probs = torch.stack(all_model_probs)
         
-        # 计算集成预测（多数投票）
+        # Calculate ensemble predictions (majority voting)
         ensemble_preds = torch.mode(stacked_preds, dim=0).values
         
-        # 计算集成概率（平均）
+        # Calculate ensemble probabilities (average)
         ensemble_probs = torch.mean(stacked_probs, dim=0)
         
-        # 计算集成模型的准确率
+        # Calculate accuracy of the ensemble model
         ensemble_accuracy = (ensemble_preds == true_labels).float().mean().item()
         model_accuracies["ensemble_accuracy"] = ensemble_accuracy
         
@@ -195,15 +195,15 @@ def main():
         "--model_epoch",
         type=str,
         default="best",
-        help="指定使用哪个epoch的模型权重。可以是具体的epoch数字或'best'（使用最佳模型）",
+        help="Specify which epoch's model weights to use. Can be a specific epoch number or 'best' (using the best model)",
     )
     args = parser.parse_args()
     
-    # 设置输出目录
+    # Set output directory
     if not osp.exists(args.output_dir):
         os.makedirs(args.output_dir)
     
-    # 设置日志
+    # Set up logging
     log_filename = osp.join(args.output_dir, f'inference_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
     logging.basicConfig(
         level=logging.INFO,
@@ -215,24 +215,24 @@ def main():
     )
     logger = logging.getLogger(__name__)
     
-    # 设置设备
+    # Set device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
     
-    # 加载数据集
+    # Load dataset
     dataset = read_dataset()
     
-    # 分割数据集（保持与训练时相同的分割方式）
-    np.random.seed(0)  # 使用与训练时相同的随机种子
+    # Split dataset (keeping the same split as during training)
+    np.random.seed(0)  # Use the same random seed as during training
     indices = np.random.permutation(len(dataset))
-    split_idx = int(0.7 * len(dataset))  # 70%用于训练
-    inference_indices = indices[split_idx:]  # 30%用于推理
+    split_idx = int(0.7 * len(dataset))  # 70% for training
+    inference_indices = indices[split_idx:]  # 30% for inference
     inference_data = [dataset[i] for i in inference_indices]
     
     logger.info(f"Inference dataset size: {len(inference_data)}")
     logger.info(f"Using model weights from: {'best model' if args.model_epoch == 'best' else f'epoch {args.model_epoch}'}")
     
-    # 初始化推理器
+    # Initialize inferencer
     inferencer = EnsembleInference(
         model_dir=args.model_dir,
         device=device,
@@ -240,17 +240,17 @@ def main():
         model_epoch=args.model_epoch
     )
     
-    # 进行推理
+    # Perform inference
     logger.info("Starting inference...")
     ensemble_preds, ensemble_probs, accuracies = inferencer.predict_ensemble(inference_data)
     
-    # 记录结果
+    # Record results
     logger.info("\nInference Results:")
     logger.info("=" * 50)
     for model_name, accuracy in accuracies.items():
         logger.info(f"{model_name}: {accuracy:.4f}")
     
-    # 保存预测结果
+    # Save prediction results
     results = {
         "predictions": ensemble_preds.cpu().numpy(),
         "probabilities": ensemble_probs.cpu().numpy(),
