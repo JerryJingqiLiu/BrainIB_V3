@@ -230,8 +230,13 @@ class BootstrapTrainer:
         self.logger.info("=" * 50)
         self.logger.info(f"Number of Bootstrap Models: {self.num_models}")
         self.logger.info(f"Training Accuracies: {self.train_accuracies}")
-        self.logger.info(f"Mean Training Accuracy: {np.mean(self.train_accuracies):.4f} ± {np.std(self.train_accuracies):.4f}")
+
+        train_accs_cpu = [acc.cpu() for acc in self.train_accuracies]
+        val_accs_cpu = [acc.cpu() for acc in self.val_accuracies]
+        inference_accs_cpu = [acc.cpu() for acc in self.inference_accuracies]
+        
+        self.logger.info(f"Mean Training Accuracy: {np.mean(train_accs_cpu):.6f} ± {np.std(train_accs_cpu):.6f}")
         self.logger.info(f"Validation Accuracies: {self.val_accuracies}")
-        self.logger.info(f"Mean Validation Accuracy: {np.mean(self.val_accuracies):.4f} ± {np.std(self.val_accuracies):.4f}")
+        self.logger.info(f"Mean Validation Accuracy: {np.mean(val_accs_cpu):.6f} ± {np.std(val_accs_cpu):.6f}")
         self.logger.info(f"Inference Accuracies: {self.inference_accuracies}")
-        self.logger.info(f"Mean Inference Accuracy: {np.mean(self.inference_accuracies):.4f} ± {np.std(self.inference_accuracies):.4f}") 
+        self.logger.info(f"Mean Inference Accuracy: {np.mean(inference_accs_cpu):.6f} ± {np.std(inference_accs_cpu):.6f}") 
